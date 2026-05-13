@@ -5,12 +5,19 @@ Una aplicación web de predicciones para la Copa Mundial de Fútbol FIFA 2026. L
 ## Características
 
 ✅ **Sistema de autenticación** — Registro y login de usuarios
+
 ✅ **Predicciones dinámicas** — Ingresá tus predicciones antes de que empiece cada partido
+
 ✅ **Sistema de puntuación automático** — Los puntos se calculan al cargar los resultados reales
+
 ✅ **Tabla de posiciones** — Ranking en tiempo real con desempates inteligentes
+
 ✅ **Panel de administración** — Carga de resultados y gestión de partidos
+
 ✅ **Perfiles de usuario** — Personalización de avatar y contraseña
+
 ✅ **Personalización total** — Personaliza el título y colores de la app desde el admin
+
 ✅ **Responsive design** — Funciona perfecto en mobile y desktop
 
 ## Sistema de Puntos
@@ -107,9 +114,13 @@ Todos los cambios se aplicarán inmediatamente a toda la aplicación.
 ## Seguridad
 
 ✅ Contraseñas hasheadas con bcrypt
+
 ✅ Proteción CSRF en formularios
+
 ✅ Validación de entrada de datos
+
 ✅ SQL injection protection (prepared statements)
+
 ✅ Sesiones seguras
 
 ## Soporte
@@ -119,4 +130,5 @@ Para reportar bugs o sugerencias, contactá con el equipo de desarrollo.
 ---
 
 **Made with ❤️🇦🇷**
+
 [Sitio del proyecto](https://federicogarcia.ar/prode)
