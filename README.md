@@ -1,7 +1,8 @@
 # 🏆 Prode Mundial 2026
 
 Una aplicación web de predicciones para la Copa Mundial de Fútbol FIFA 2026. Los participantes pueden pronosticar resultados de partidos, acumular puntos y competir en un ranking en tiempo real.
-![Preview Site](https://federicogarcia.ar/prode/assets/previe-site.png)
+
+![Preview Site](https://federicogarcia.ar/prode/assets/preview-site.png)
 
 ## Características
 
