@@ -1,0 +1,192 @@
+<?php
+require_once 'auth.php';
+require_once 'db.php';
+requireLogin();
+
+$user = currentUser();
+$db   = getDB();
+$appTitle = getSetting('app_title', 'Prode Mundial 2026');
+$primaryColor = getSetting('primary_color', '#2964a0');
+$primaryColorDark = getSetting('primary_color_dark', '#153c8f');
+$primaryColorLight = getSetting('primary_color_light', '#e8ecf5');
+$accentColor = getSetting('accent_color', '#f59e0b');
+
+// Cargar partidos con predicciones del usuario
+$stmt = $db->prepare('
+    SELECT m.*,
+           p.home_score  AS pred_home,
+           p.away_score  AS pred_away,
+           p.points      AS pred_points,
+           p.id          AS pred_id
+    FROM matches m
+    LEFT JOIN predictions p ON p.match_id = m.id AND p.user_id = ?
+    ORDER BY m.match_date ASC
+');
+$stmt->execute([$user['id']]);
+$matches = $stmt->fetchAll();
+
+// Puntaje total del usuario
+$stmtPts = $db->prepare('SELECT COALESCE(SUM(points), 0) as total FROM predictions WHERE user_id = ?');
+$stmtPts->execute([$user['id']]);
+$totalPoints = $stmtPts->fetchColumn();
+
+// Agrupar por fase y grupo
+$grouped = [];
+foreach ($matches as $m) {
+    $key = $m['stage'] . ($m['group_name'] ? ' — Grupo ' . $m['group_name'] : '');
+    $grouped[$key][] = $m;
+}
+
+$now = new DateTime();
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= htmlspecialchars($appTitle) ?></title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --app-primary: <?= htmlspecialchars($primaryColor) ?>;
+            --app-primary-d: <?= htmlspecialchars($primaryColorDark) ?>;
+            --app-primary-l: <?= htmlspecialchars($primaryColorLight) ?>;
+            --app-accent: <?= htmlspecialchars($accentColor) ?>;
+        }
+        .site-header { background: var(--app-primary-d); }
+        .site-logo { color: var(--white); }
+        .site-logo span { color: var(--app-accent); }
+        .score-badge { background: linear-gradient(135deg, var(--app-primary), var(--app-primary-d)); }
+        .section-title { color: var(--app-primary-d); border-bottom-color: var(--app-primary-l); }
+        .badge-done { background: var(--app-primary-l); color: var(--app-primary-d); }
+        .btn-primary { background: var(--app-primary); }
+        .btn-primary:hover { background: var(--app-primary-d); }
+        .btn-save { background: var(--app-primary-l); }
+        .btn-save:hover { background: #c6e8d6; }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="dashboard.php" class="site-logo">🏆 <?= htmlspecialchars($appTitle) ?></a>
+            <nav class="site-nav">
+                <a href="leaderboard.php">🏅 Tabla</a>
+                <?php if ($user['is_admin']): ?>
+                <a href="admin.php">⚙️ Admin</a>
+                <?php endif; ?>
+                <a href="profile.php" class="nav-user"><?= htmlspecialchars($user['avatar']) ?> <?= htmlspecialchars($user['display_name']) ?></a>
+                <a href="logout.php" class="btn-logout">Salir</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="dashboard-header">
+            <div>
+                <h2>Mis Predicciones</h2>
+                <p class="subtitle">Ingresá el resultado que esperás para cada partido antes de que empiece.</p>
+            </div>
+            <div class="score-badge">
+                <span class="score-number"><?= $totalPoints ?></span>
+                <span class="score-label">puntos</span>
+            </div>
+        </div>
+
+        <div class="scoring-legend">
+            <strong>Sistema de puntos:</strong>
+            <span class="pill pill-gold">3 pts — Resultado exacto</span>
+            <span class="pill pill-blue">1 pt — Ganador/empate correcto</span>
+            <span class="pill pill-gray">0 pts — Fallo</span>
+        </div>
+
+        <?php foreach ($grouped as $section => $sectionMatches): ?>
+        <section class="match-section">
+            <h3 class="section-title"><?= htmlspecialchars($section) ?></h3>
+            <div class="matches-grid">
+                <?php foreach ($sectionMatches as $m):
+                    $matchDate  = new DateTime($m['match_date']);
+                    $locked     = $matchDate <= $now;
+                    $finished   = (bool)$m['is_finished'];
+                    $hasPred    = $m['pred_id'] !== null;
+                    $cardClass  = 'match-card';
+                    if ($finished) $cardClass .= ' match-finished';
+                    elseif ($locked) $cardClass .= ' match-locked';
+                ?>
+                <div class="<?= $cardClass ?>" id="match-<?= $m['id'] ?>">
+                    <div class="match-meta">
+                        <span class="match-date"><?= $matchDate->format('d/m H:i') ?>hs</span>
+                        <?php if ($finished): ?>
+                            <span class="badge badge-done">Finalizado</span>
+                        <?php elseif ($locked): ?>
+                            <span class="badge badge-locked">Cerrado</span>
+                        <?php else: ?>
+                            <span class="badge badge-open">Abierto</span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="match-teams">
+                        <div class="team team-home">
+                            <span class="flag"><?= $m['home_flag'] ?></span>
+                            <span class="team-name"><?= htmlspecialchars($m['home_team']) ?></span>
+                        </div>
+
+                        <div class="match-score-area">
+                            <?php if ($finished): ?>
+                                <div class="result-score">
+                                    <?= $m['home_score'] ?> — <?= $m['away_score'] ?>
+                                </div>
+                                <?php if ($hasPred): ?>
+                                <div class="pred-score">
+                                    Tu pred: <?= $m['pred_home'] ?>—<?= $m['pred_away'] ?>
+                                    <span class="points-earned <?= $m['pred_points'] >= 3 ? 'pts-gold' : ($m['pred_points'] >= 1 ? 'pts-blue' : 'pts-gray') ?>">
+                                        +<?= $m['pred_points'] ?>pts
+                                    </span>
+                                </div>
+                                <?php else: ?>
+                                <div class="pred-score no-pred">Sin predicción</div>
+                                <?php endif; ?>
+                            <?php elseif ($locked && $hasPred): ?>
+                                <div class="locked-pred">
+                                    <?= $m['pred_home'] ?> — <?= $m['pred_away'] ?>
+                                </div>
+                            <?php elseif ($locked): ?>
+                                <div class="locked-pred no-pred">Sin pred.</div>
+                            <?php else: ?>
+                                <div class="pred-inputs">
+                                    <input type="number" class="score-input" min="0" max="20"
+                                           id="ph_<?= $m['id'] ?>"
+                                           value="<?= $hasPred ? $m['pred_home'] : '' ?>"
+                                           placeholder="0">
+                                    <span class="vs-sep">:</span>
+                                    <input type="number" class="score-input" min="0" max="20"
+                                           id="pa_<?= $m['id'] ?>"
+                                           value="<?= $hasPred ? $m['pred_away'] : '' ?>"
+                                           placeholder="0">
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="team team-away">
+                            <span class="team-name"><?= htmlspecialchars($m['away_team']) ?></span>
+                            <span class="flag"><?= $m['away_flag'] ?></span>
+                        </div>
+                    </div>
+
+                    <div class="match-venue">📍 <?= htmlspecialchars($m['venue']) ?></div>
+                    <div class="save-status" id="status_<?= $m['id'] ?>"></div>
+                    <?php if (!$finished && !$locked): ?>
+                    <button class="btn-save" onclick="savePrediction(<?= $m['id'] ?>)"
+                            title="Guardar predicción">
+                        <?= $hasPred ? '✏️' : '💾' ?>
+                    </button>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
+        <?php endforeach; ?>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
