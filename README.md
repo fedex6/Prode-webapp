@@ -71,7 +71,7 @@ Consulta [INSTRUCCIONES.md](INSTRUCCIONES.md) para instrucciones detalladas de i
 1. Importa `schema.sql` a tu base de datos
 2. Configura credenciales en `db.php`
 3. Levanta el servidor: `php -S 0.0.0.0:8080`
-4. Ingresa como **admin/admin123** (cambiá la contraseña de inmediato)
+4. Ingresa como **admin/password** (cambiá la contraseña de inmediato)
 
 ## Uso
 
