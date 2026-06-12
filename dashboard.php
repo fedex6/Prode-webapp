@@ -30,10 +30,19 @@ $stmtPts = $db->prepare('SELECT COALESCE(SUM(points), 0) as total FROM predictio
 $stmtPts->execute([$user['id']]);
 $totalPoints = $stmtPts->fetchColumn();
 
-// Agrupar por fase y grupo
+// Agrupar por fase/grupo o por fecha según parámetro
+$sortByDate = isset($_GET['sort']) && $_GET['sort'] === 'date';
 $grouped = [];
 foreach ($matches as $m) {
-    $key = $m['stage'] . ($m['group_name'] ? ' — Grupo ' . $m['group_name'] : '');
+    if ($sortByDate) {
+        $key = (new DateTime($m['match_date']))->format('l d/m/Y');
+        // traducir día al español
+        $dias = ['Monday'=>'Lunes','Tuesday'=>'Martes','Wednesday'=>'Miércoles',
+                 'Thursday'=>'Jueves','Friday'=>'Viernes','Saturday'=>'Sábado','Sunday'=>'Domingo'];
+        foreach ($dias as $en => $es) $key = str_replace($en, $es, $key);
+    } else {
+        $key = $m['stage'] . ($m['group_name'] ? ' — Grupo ' . $m['group_name'] : '');
+    }
     $grouped[$key][] = $m;
 }
 
@@ -63,6 +72,21 @@ $now = new DateTime();
         .btn-primary:hover { background: var(--app-primary-d); }
         .btn-save { background: var(--app-primary-l); }
         .btn-save:hover { background: #c6e8d6; }
+
+        .btn-sort {
+            text-align: center;
+            background: transparent;
+            border: 1.5px solid #d1d5db;
+            color: var(--text);
+            padding: .3rem .8rem;
+            border-radius: 8px;
+            font-size: .85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background .15s, border-color .15s;
+        }
+        .btn-sort:hover { background: var(--gray-l); text-decoration: none; }
     </style>
 </head>
 <body>
@@ -85,18 +109,25 @@ $now = new DateTime();
             <div>
                 <h2>Mis Predicciones</h2>
                 <p class="subtitle">Ingresá el resultado que esperás para cada partido antes de que empiece.</p>
-            </div>
-            <div class="score-badge">
-                <span class="score-number"><?= $totalPoints ?></span>
-                <span class="score-label">puntos</span>
-            </div>
-        </div>
 
-        <div class="scoring-legend">
-            <strong>Sistema de puntos:</strong>
-            <span class="pill pill-gold">3 pts — Resultado exacto</span>
-            <span class="pill pill-blue">1 pt — Ganador/empate correcto</span>
-            <span class="pill pill-gray">0 pts — Fallo</span>
+                <div class="scoring-legend">
+                    <strong>Sistema de puntos:</strong>
+                    <span class="pill pill-gold">3 pts — Resultado exacto</span>
+                    <span class="pill pill-blue">1 pt — Ganador/empate correcto</span>
+                    <span class="pill pill-gray">0 pts — Fallo</span>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:.4rem">
+                <div class="score-badge">
+                    <span class="score-number"><?= $totalPoints ?></span>
+                    <span class="score-label">puntos</span>
+                </div>
+                <?php if ($sortByDate): ?>
+                <a href="dashboard.php" class="btn-sort">☠️<br />Por GRUPOS</a>
+                <?php else: ?>
+                <a href="dashboard.php?sort=date" class="btn-sort">📅<br />Por FECHAS</a>
+                <?php endif; ?>
+            </div>
         </div>
 
         <?php foreach ($grouped as $section => $sectionMatches): ?>
@@ -135,16 +166,6 @@ $now = new DateTime();
                                 <div class="result-score">
                                     <?= $m['home_score'] ?> — <?= $m['away_score'] ?>
                                 </div>
-                                <?php if ($hasPred): ?>
-                                <div class="pred-score">
-                                    Tu pred: <?= $m['pred_home'] ?>—<?= $m['pred_away'] ?>
-                                    <span class="points-earned <?= $m['pred_points'] >= 3 ? 'pts-gold' : ($m['pred_points'] >= 1 ? 'pts-blue' : 'pts-gray') ?>">
-                                        +<?= $m['pred_points'] ?>pts
-                                    </span>
-                                </div>
-                                <?php else: ?>
-                                <div class="pred-score no-pred">Sin predicción</div>
-                                <?php endif; ?>
                             <?php elseif ($locked && $hasPred): ?>
                                 <div class="locked-pred">
                                     <?= $m['pred_home'] ?> — <?= $m['pred_away'] ?>
@@ -173,6 +194,18 @@ $now = new DateTime();
                     </div>
 
                     <div class="match-venue">📍 <?= htmlspecialchars($m['venue']) ?></div>
+                    <?php if ($finished): ?>
+                    <div class="match-result-summary">
+                        <?php if ($hasPred): ?>
+                        <span class="pred-score-inline">Tu pred: <?= $m['pred_home'] ?>—<?= $m['pred_away'] ?></span>
+                        <span class="points-earned <?= $m['pred_points'] >= 3 ? 'pts-gold' : ($m['pred_points'] >= 1 ? 'pts-blue' : 'pts-gray') ?>">
+                            +<?= $m['pred_points'] ?>pts
+                        </span>
+                        <?php else: ?>
+                        <span class="pred-score-inline no-pred">Sin predicción</span>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
                     <div class="save-status" id="status_<?= $m['id'] ?>"></div>
                     <?php if (!$finished && !$locked): ?>
                     <button class="btn-save" onclick="savePrediction(<?= $m['id'] ?>)"
