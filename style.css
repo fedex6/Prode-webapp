@@ -421,6 +421,17 @@ input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px r
 /* ── Venue ────────────────────────────────────────────── */
 .match-venue { font-size: .75rem; color: #9ca3af; margin-top: .5rem; }
 
+.match-result-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    margin-top: .4rem;
+    font-size: .8rem;
+}
+.pred-score-inline { color: #6b7280; }
+.pred-score-inline.no-pred { font-style: italic; }
+
 /* ── Save status ──────────────────────────────────────── */
 .save-status { font-size: .78rem; min-height: 1.1em; margin-top: .3rem; text-align: center; font-weight: 600; }
 .status-ok   { color: #059669; }
