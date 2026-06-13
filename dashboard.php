@@ -25,6 +25,22 @@ $stmt = $db->prepare('
 $stmt->execute([$user['id']]);
 $matches = $stmt->fetchAll();
 
+// Estadísticas de predicciones por partido (para mostrar % tras finalizar)
+$stmtStats = $db->prepare('
+    SELECT match_id,
+           COUNT(*) AS total,
+           SUM(CASE WHEN home_score > away_score THEN 1 ELSE 0 END) AS home_wins,
+           SUM(CASE WHEN home_score = away_score THEN 1 ELSE 0 END) AS draws,
+           SUM(CASE WHEN home_score < away_score THEN 1 ELSE 0 END) AS away_wins
+    FROM predictions
+    GROUP BY match_id
+');
+$stmtStats->execute();
+$matchStats = [];
+foreach ($stmtStats->fetchAll() as $row) {
+    $matchStats[$row['match_id']] = $row;
+}
+
 // Puntaje total del usuario
 $stmtPts = $db->prepare('SELECT COALESCE(SUM(points), 0) as total FROM predictions WHERE user_id = ?');
 $stmtPts->execute([$user['id']]);
@@ -205,6 +221,32 @@ $now = new DateTime();
                         <span class="pred-score-inline no-pred">Sin predicción</span>
                         <?php endif; ?>
                     </div>
+                    <?php if (!empty($matchStats[$m['id']]) && $matchStats[$m['id']]['total'] > 0):
+                        $st    = $matchStats[$m['id']];
+                        $total = $st['total'];
+                        $pHome = round($st['home_wins'] / $total * 100);
+                        $pDraw = round($st['draws']     / $total * 100);
+                        $pAway = 100 - $pHome - $pDraw;
+                    ?>
+                    <div class="pred-dist">
+                        <div class="pred-dist-bar">
+                            <?php if ($pHome > 0): ?>
+                            <div class="pred-dist-seg seg-home" style="width:<?= $pHome ?>%"><?= $pHome ?>%</div>
+                            <?php endif; ?>
+                            <?php if ($pDraw > 0): ?>
+                            <div class="pred-dist-seg seg-draw" style="width:<?= $pDraw ?>%"><?= $pDraw ?>%</div>
+                            <?php endif; ?>
+                            <?php if ($pAway > 0): ?>
+                            <div class="pred-dist-seg seg-away" style="width:<?= $pAway ?>%"><?= $pAway ?>%</div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="pred-dist-labels">
+                            <span class="pdl-home"><?= htmlspecialchars($m['home_team']) ?> <?= $pHome ?>%</span>
+                            <span class="pdl-draw">Empate <?= $pDraw ?>%</span>
+                            <span class="pdl-away"><?= $pAway ?>% <?= htmlspecialchars($m['away_team']) ?></span>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                     <?php endif; ?>
                     <div class="save-status" id="status_<?= $m['id'] ?>"></div>
                     <?php if (!$finished && !$locked): ?>

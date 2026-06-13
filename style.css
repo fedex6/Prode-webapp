@@ -432,6 +432,47 @@ input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px r
 .pred-score-inline { color: #6b7280; }
 .pred-score-inline.no-pred { font-style: italic; }
 
+/* ── Prediction distribution bar ─────────────────────── */
+.pred-dist {
+    margin-top: .5rem;
+    padding: 0 .25rem;
+}
+.pred-dist-bar {
+    display: flex;
+    height: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    gap: 1px;
+    background: #e5e7eb;
+}
+.pred-dist-seg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .68rem;
+    font-weight: 700;
+    color: #fff;
+    transition: width .4s ease;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.seg-home { background: #2964a0; color: #fff; border-radius: 10px 0 0 10px; }
+.seg-draw { background: #fff; color: var(--accent, #f59e0b); border: 1px solid #e5e7eb; }
+.seg-away { background: #2964a0; color: #fff; border-radius: 0 10px 10px 0; }
+.seg-home:only-child,
+.seg-draw:only-child,
+.seg-away:only-child { border-radius: 10px; }
+.pred-dist-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: .7rem;
+    margin-top: .25rem;
+    color: #6b7280;
+}
+.pdl-home { color: #2964a0; font-weight: 600; }
+.pdl-draw { color: #6b7280; font-weight: 600; }
+.pdl-away { color: #b91c1c; font-weight: 600; }
+
 /* ── Save status ──────────────────────────────────────── */
 .save-status { font-size: .78rem; min-height: 1.1em; margin-top: .3rem; text-align: center; font-weight: 600; }
 .status-ok   { color: #059669; }
