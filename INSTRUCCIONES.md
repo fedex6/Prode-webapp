@@ -1,7 +1,7 @@
 # Prode Mundial 2026 — Instrucciones de instalación
 
 ## Requisitos
-- PHP 7.4 o superior (recomendado 8.3+)
+- PHP 7.4 o superior (recomendado 8.3+), con la extensión `zip` habilitada
 - MariaDB 11+ / MySQL 8+
 - Un servidor web (Apache, Nginx) o `php -S` para desarrollo local
 
@@ -22,9 +22,11 @@ Editá `db.php` y ajustá las credenciales:
 ```php
 define('DB_HOST', 'localhost');
 define('DB_USER', '--USER--');       // tu usuario
-define('DB_PASS', '--PASSWORD');           // tu contraseña
+define('DB_PASS', '--PASSWORD--');   // tu contraseña
 define('DB_NAME', 'prode_mundial');
 ```
+
+> ⚠️ `db.php` nunca se sobreescribe durante las actualizaciones automáticas, así que solo necesitás configurarlo una vez.
 
 ### 3. Levantar el servidor
 Con PHP built-in (para desarrollo/red local):
@@ -33,9 +35,9 @@ Con PHP built-in (para desarrollo/red local):
 php -S 0.0.0.0:8080
 ```
 
-Luego entrás desde cualquier PC de la oficina a `http://IP-del-servidor:8080`
+Luego entrás desde cualquier PC de la red a `http://IP-del-servidor:8080`
 
-Con XAMPP/WAMP: copiá la carpeta a `htdocs/` y abrí `http://localhost/prode` o el nombre de carpeta que le hayas puesto.
+Con XAMPP/WAMP: copiá la carpeta a `htdocs/` y abrí `http://localhost/prode` (o el nombre de carpeta que le hayas puesto).
 
 ### 4. Credenciales del administrador
 - **Usuario:** `admin`
@@ -55,13 +57,15 @@ Con XAMPP/WAMP: copiá la carpeta a `htdocs/` y abrí `http://localhost/prode` o
 
 ### Para el admin
 1. Ingresar como `admin`
-2. En "Panel de Admin" → cargar los resultados reales después de cada partido
+2. En **Panel de Admin** → cargar los resultados reales después de cada partido
 3. Los puntos se calculan automáticamente al cargar cada resultado
 4. Se pueden agregar nuevos partidos (octavos, cuartos, etc.) desde el panel
+5. Verificar y aplicar actualizaciones desde la sección **🔄 Actualizaciones de la App**
 
 ---
 
 ## Sistema de puntos
+
 | Resultado | Puntos |
 |-----------|--------|
 | Marcador exacto (ej: predijiste 2-1 y fue 2-1) | **3 puntos** |
@@ -77,7 +81,7 @@ Desempate en tabla: puntos totales → exactos → aciertos.
 ### Cambiar el título de la App
 
 1. Ingresa como administrador
-2. Ve al **Panel de Admin** 
+2. Ve al **Panel de Admin**
 3. En la sección **🎨 Configuración de la Aplicación**, editá el campo "Título de la App"
 4. Haz clic en **Guardar configuración**
 
@@ -88,7 +92,7 @@ El nuevo título aparecerá inmediatamente en:
 
 ### Personalizar colores
 
-En la misma sección de configuración podés cambiar 5 colores principales:
+En la misma sección de configuración podés cambiar 4 colores principales:
 
 | Color | Uso |
 |-------|-----|
@@ -103,3 +107,61 @@ En la misma sección de configuración podés cambiar 5 colores principales:
 3. Haz clic en **Guardar configuración**
 
 Los cambios se aplican en toda la aplicación al instante.
+
+---
+
+## Actualizaciones automáticas
+
+La app detecta nuevas versiones publicadas en GitHub y permite actualizarla con un click desde el panel admin, sin necesidad de FTP ni acceso SSH.
+
+### Cómo actualizar
+
+1. Ingresá al **Panel de Admin**
+2. En la sección **🔄 Actualizaciones de la App** verás:
+   - La versión actualmente instalada
+   - La última versión disponible en GitHub
+3. Si hay una versión nueva, aparece un botón **Instalar**
+4. Confirmá la actualización y esperá el mensaje de éxito
+
+### Qué archivos se protegen
+
+Durante la actualización los siguientes archivos **nunca se sobreescriben**:
+
+| Archivo | Razón |
+|---------|-------|
+| `db.php` | Contiene las credenciales de la base de datos |
+| `version.txt` | Se actualiza al finalizar con el nuevo tag |
+| `.htaccess` | Configuración local del servidor web |
+
+### Verificar actualizaciones manualmente
+
+En la misma sección hay un botón **🔍 Verificar actualizaciones ahora** que fuerza un re-chequeo saltando el caché de 1 hora.
+
+### Requisito para actualizaciones
+
+El servidor PHP debe tener la extensión `zip` habilitada. Podés verificarlo con:
+
+```bash
+php -m | grep zip
+```
+
+---
+
+## Estructura de archivos
+
+```
+prode-webapp/
+├── index.php            # Login
+├── register.php         # Registro de usuarios
+├── dashboard.php        # Mis predicciones
+├── leaderboard.php      # Tabla de posiciones
+├── profile.php          # Perfil de usuario
+├── admin.php            # Panel administrativo (incl. actualizador)
+├── api.php              # API REST para guardar predicciones
+├── auth.php             # Funciones de autenticación
+├── db.php               # Conexión a BD — EDITAR CON TUS CREDENCIALES
+├── style.css            # Estilos de la aplicación
+├── schema.sql           # Schema inicial de BD
+├── version.txt          # Versión instalada actualmente
+└── INSTRUCCIONES.md     # Este archivo
+```

@@ -8,6 +8,127 @@ $user    = currentUser();
 $message = '';
 $error   = '';
 
+// === AUTO-UPDATER ===
+define('CURRENT_VERSION', trim(@file_get_contents(__DIR__ . '/version.txt') ?: 'v0.0'));
+define('GITHUB_REPO', 'fedex6/Prode-webapp');
+
+// Archivos que NUNCA se sobreescriben (contienen configuración local)
+define('UPDATE_SKIP_FILES', ['db.php', 'version.txt', '.htaccess']);
+
+function checkLatestRelease(): ?array {
+    $cache = sys_get_temp_dir() . '/prode_update_cache.json';
+    if (file_exists($cache) && (time() - filemtime($cache)) < 3600) {
+        return json_decode(file_get_contents($cache), true) ?: null;
+    }
+    $ctx = stream_context_create(['http' => [
+        'timeout' => 5,
+        'header'  => "User-Agent: ProdeWebapp-Updater/1.0\r\n",
+    ]]);
+    $json = @file_get_contents('https://api.github.com/repos/' . GITHUB_REPO . '/releases/latest', false, $ctx);
+    if (!$json) return null;
+    $data = json_decode($json, true);
+    if (empty($data['tag_name'])) return null;
+    $result = [
+        'tag'       => $data['tag_name'],
+        'name'      => $data['name'] ?? $data['tag_name'],
+        'zipball'   => $data['zipball_url'],
+        'published' => $data['published_at'] ?? '',
+        'body'      => $data['body'] ?? '',
+        'url'       => $data['html_url'] ?? '',
+    ];
+    file_put_contents($cache, json_encode($result));
+    return $result;
+}
+
+function rrmdir(string $dir): void {
+    if (!is_dir($dir)) return;
+    foreach (scandir($dir) as $item) {
+        if ($item === '.' || $item === '..') continue;
+        $path = $dir . DIRECTORY_SEPARATOR . $item;
+        is_dir($path) ? rrmdir($path) : unlink($path);
+    }
+    rmdir($dir);
+}
+
+// Forzar re-chequeo
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'check_update') {
+    @unlink(sys_get_temp_dir() . '/prode_update_cache.json');
+    header('Location: admin.php#update-section');
+    exit;
+}
+
+// Ejecutar actualización
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'do_update') {
+    $release = checkLatestRelease();
+    if (!$release) {
+        $error = 'No se pudo conectar con GitHub para obtener la última versión.';
+    } elseif ($release['tag'] === CURRENT_VERSION) {
+        $message = 'Ya tenés la última versión instalada (' . CURRENT_VERSION . ').';
+    } else {
+        $tmpZip = sys_get_temp_dir() . '/prode_update.zip';
+        $tmpDir = sys_get_temp_dir() . '/prode_update_extract';
+
+        $ctx = stream_context_create(['http' => [
+            'timeout'         => 60,
+            'header'          => "User-Agent: ProdeWebapp-Updater/1.0\r\nAuthorization: \r\n",
+            'follow_location' => 1,
+            'max_redirects'   => 5,
+        ]]);
+        $zipData = @file_get_contents($release['zipball'], false, $ctx);
+
+        if (!$zipData || !file_put_contents($tmpZip, $zipData)) {
+            $error = 'No se pudo descargar el archivo de actualización desde GitHub.';
+        } else {
+            $zip = new ZipArchive();
+            if ($zip->open($tmpZip) !== true) {
+                $error = 'No se pudo abrir el archivo ZIP descargado.';
+            } else {
+                rrmdir($tmpDir);
+                mkdir($tmpDir, 0755, true);
+                $zip->extractTo($tmpDir);
+                $zip->close();
+                @unlink($tmpZip);
+
+                // GitHub genera una carpeta raíz tipo "fedex6-Prode-webapp-abc1234/"
+                $subdirs = glob($tmpDir . '/*', GLOB_ONLYDIR);
+                if (empty($subdirs)) {
+                    $error = 'Estructura del ZIP inesperada.';
+                } else {
+                    $srcDir = rtrim($subdirs[0], '/') . '/';
+                    $skip   = UPDATE_SKIP_FILES;
+                    $copied = 0;
+
+                    $iter = new RecursiveIteratorIterator(
+                        new RecursiveDirectoryIterator($srcDir, RecursiveDirectoryIterator::SKIP_DOTS),
+                        RecursiveIteratorIterator::SELF_FIRST
+                    );
+                    foreach ($iter as $item) {
+                        $rel  = substr($item->getPathname(), strlen($srcDir));
+                        if (in_array($rel, $skip, true)) continue;
+
+                        $dest = __DIR__ . '/' . $rel;
+                        if ($item->isDir()) {
+                            if (!is_dir($dest)) mkdir($dest, 0755, true);
+                        } else {
+                            copy($item->getPathname(), $dest);
+                            $copied++;
+                        }
+                    }
+
+                    rrmdir($tmpDir);
+                    file_put_contents(__DIR__ . '/version.txt', $release['tag'] . "\n");
+                    @unlink(sys_get_temp_dir() . '/prode_update_cache.json');
+
+                    $message = "App actualizada a {$release['tag']} correctamente ({$copied} archivos actualizados).";
+                }
+            }
+        }
+    }
+}
+
+$latestRelease = checkLatestRelease();
+$hasUpdate     = $latestRelease && $latestRelease['tag'] !== CURRENT_VERSION;
+
 // Cargar resultado real de un partido
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_result') {
     $matchId   = (int)$_POST['match_id'];
@@ -258,6 +379,57 @@ $stats = $db->query('
                 </div>
                 <button type="submit" class="btn btn-primary">Agregar partido</button>
             </form>
+        </section>
+
+        <!-- Actualizaciones -->
+        <section class="admin-section" id="update-section">
+            <h3>🔄 Actualizaciones de la App</h3>
+            <div class="update-info">
+                <div class="update-version-row">
+                    <div class="update-version-block">
+                        <span class="update-label">Versión instalada</span>
+                        <span class="update-tag update-tag-current"><?= htmlspecialchars(CURRENT_VERSION) ?></span>
+                    </div>
+                    <?php if ($latestRelease): ?>
+                    <div class="update-version-block">
+                        <span class="update-label">Última versión en GitHub</span>
+                        <span class="update-tag <?= $hasUpdate ? 'update-tag-new' : 'update-tag-current' ?>">
+                            <?= htmlspecialchars($latestRelease['tag']) ?>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                </div>
+
+                <?php if (!$latestRelease): ?>
+                    <p class="update-status update-status-warn">⚠️ No se pudo conectar con GitHub. Verificá la conexión del servidor.</p>
+                <?php elseif ($hasUpdate): ?>
+                    <div class="update-banner">
+                        <p class="update-status update-status-new">
+                            🆕 <strong>Nueva versión disponible: <?= htmlspecialchars($latestRelease['tag']) ?></strong>
+                            <?php if ($latestRelease['name'] !== $latestRelease['tag']): ?>
+                                — <?= htmlspecialchars($latestRelease['name']) ?>
+                            <?php endif; ?>
+                        </p>
+                        <?php if ($latestRelease['body']): ?>
+                        <details class="update-notes">
+                            <summary>Ver novedades</summary>
+                            <pre><?= htmlspecialchars($latestRelease['body']) ?></pre>
+                        </details>
+                        <?php endif; ?>
+                        <form method="POST" onsubmit="return confirm('¿Actualizar la app a <?= htmlspecialchars($latestRelease['tag']) ?>?\n\nEsto reemplazará los archivos de la app (db.php y .htaccess no se tocan).')">
+                            <input type="hidden" name="action" value="do_update">
+                            <button type="submit" class="btn btn-primary">⬇️ Instalar <?= htmlspecialchars($latestRelease['tag']) ?></button>
+                        </form>
+                    </div>
+                <?php else: ?>
+                    <p class="update-status update-status-ok">✅ Tenés la última versión instalada.</p>
+                <?php endif; ?>
+
+                <form method="POST" style="margin-top: 0.75rem;">
+                    <input type="hidden" name="action" value="check_update">
+                    <button type="submit" class="btn btn-secondary btn-sm">🔍 Verificar actualizaciones ahora</button>
+                </form>
+            </div>
         </section>
 
         <!-- Cargar resultados -->

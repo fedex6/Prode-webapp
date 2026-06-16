@@ -20,6 +20,8 @@ Una aplicación web de predicciones para la Copa Mundial de Fútbol FIFA 2026. L
 
 ✅ **Personalización total** — Personaliza el título y colores de la app desde el admin
 
+✅ **Actualizador automático** — Detecta nuevas versiones en GitHub y actualiza la app con un click desde el panel admin
+
 ✅ **Responsive design** — Funciona perfecto en mobile y desktop
 
 ## Sistema de Puntos
@@ -41,12 +43,13 @@ prode-webapp/
 ├── dashboard.php        # Mis predicciones
 ├── leaderboard.php      # Tabla de posiciones
 ├── profile.php          # Perfil de usuario
-├── admin.php            # Panel administrativo
+├── admin.php            # Panel administrativo (incl. actualizador)
 ├── api.php              # API REST para guardar predicciones
 ├── auth.php             # Funciones de autenticación
 ├── db.php               # Conexión a BD y funciones de datos
 ├── style.css            # Estilos de la aplicación
 ├── schema.sql           # Schema inicial de BD
+├── version.txt          # Versión instalada actualmente
 └── INSTRUCCIONES.md     # Instrucciones de instalación
 ```
 
@@ -59,7 +62,7 @@ prode-webapp/
 
 ## Requisitos
 
-- PHP 7.4 o superior (recomendado 8.0+)
+- PHP 7.4 o superior (recomendado 8.0+), con extensión `zip` habilitada
 - MariaDB 11+ / MySQL 8+
 - Un servidor web (Apache, Nginx) o usar `php -S`
 
@@ -78,7 +81,7 @@ Consulta [INSTRUCCIONES.md](INSTRUCCIONES.md) para instrucciones detalladas de i
 ### Para participantes
 1. **Registrate** — Creá tu cuenta
 2. **Predice** — Ingresá el resultado esperado para cada partido
-3. **Compite** — Gana puntos y subeál ranking
+3. **Compite** — Gana puntos y subí al ranking
 4. **Sigue** — Los partidos se cierran automáticamente cuando empiezan
 
 ### Para administradores
@@ -86,6 +89,7 @@ Consulta [INSTRUCCIONES.md](INSTRUCCIONES.md) para instrucciones detalladas de i
 2. **Carga resultados** — Panel Admin → Partidos y Resultados
 3. **Gestiona partidos** — Agregá nuevos partidos o reabre los existentes
 4. **Personaliza** — Cambiá el título y colores en Configuración de la Aplicación
+5. **Actualizá** — Panel Admin → Actualizaciones de la App
 
 ## Personalización
 
@@ -104,6 +108,21 @@ Desde el **Panel de Administración**:
 
 Todos los cambios se aplicarán inmediatamente a toda la aplicación.
 
+## Actualizaciones
+
+La app incluye un sistema de actualizaciones automáticas integrado en el panel admin.
+
+### Cómo funciona
+- Al abrir el panel admin se consulta la [GitHub API](https://github.com/fedex6/Prode-webapp/releases) para comparar la versión instalada (`version.txt`) con el último release publicado (caché de 1 hora)
+- Si hay una versión nueva, aparece un banner con el botón **Instalar**
+- Al instalar: se descarga el ZIP del release, se extrae y se copian los archivos sobre la instalación actual
+- **Archivos protegidos** (nunca se sobreescriben): `db.php`, `version.txt`, `.htaccess`
+
+### Publicar una nueva versión
+1. Hacé los cambios en el repo
+2. Creá un nuevo release en GitHub con un tag (ej: `v1.1`)
+3. Los usuarios verán el aviso en el panel admin automáticamente
+
 ## Base de Datos
 
 ### Tablas principales
@@ -117,7 +136,7 @@ Todos los cambios se aplicarán inmediatamente a toda la aplicación.
 
 ✅ Contraseñas hasheadas con bcrypt
 
-✅ Proteción CSRF en formularios
+✅ Protección CSRF en formularios
 
 ✅ Validación de entrada de datos
 
@@ -127,7 +146,7 @@ Todos los cambios se aplicarán inmediatamente a toda la aplicación.
 
 ## Soporte
 
-Para reportar bugs o sugerencias, contactá con el equipo de desarrollo.
+Para reportar bugs o sugerencias, abrí un [issue en GitHub](https://github.com/fedex6/Prode-webapp/issues).
 
 ---
 
