@@ -1,3 +1,22 @@
+function togglePenaltyPred(matchId) {
+    const homeInput = document.getElementById('ph_' + matchId);
+    const awayInput = document.getElementById('pa_' + matchId);
+    const area      = document.getElementById('penalty_area_' + matchId);
+    if (!area) return;
+
+    const home = homeInput.value.trim();
+    const away = awayInput.value.trim();
+    const isDraw = home !== '' && away !== '' && home === away;
+
+    area.style.display = isDraw ? '' : 'none';
+    if (!isDraw) {
+        const chk = document.getElementById('pen_chk_' + matchId);
+        if (chk) chk.checked = false;
+        const scores = document.getElementById('penalty_scores_' + matchId);
+        if (scores) scores.style.display = 'none';
+    }
+}
+
 function savePrediction(matchId) {
     const homeInput = document.getElementById('ph_' + matchId);
     const awayInput = document.getElementById('pa_' + matchId);
@@ -14,12 +33,24 @@ function savePrediction(matchId) {
     const btn = document.querySelector('#match-' + matchId + ' .btn-save');
     if (btn) btn.disabled = true;
 
-    const body = new URLSearchParams({
+    const params = {
         action:     'save_prediction',
         match_id:   matchId,
         home_score: homeScore,
         away_score: awayScore,
-    });
+    };
+
+    const penChk = document.getElementById('pen_chk_' + matchId);
+    if (penChk && penChk.checked && homeScore === awayScore) {
+        const penHome = document.getElementById('pph_' + matchId).value.trim();
+        const penAway = document.getElementById('ppa_' + matchId).value.trim();
+        if (penHome !== '' && penAway !== '') {
+            params.penalty_home = penHome;
+            params.penalty_away = penAway;
+        }
+    }
+
+    const body = new URLSearchParams(params);
 
     fetch('api.php', { method: 'POST', body })
         .then(r => r.json())
@@ -54,5 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 savePrediction(parseInt(id, 10));
             }
         });
+    });
+
+    document.querySelectorAll('[id^="penalty_area_"]').forEach(area => {
+        const matchId = area.id.replace('penalty_area_', '');
+        togglePenaltyPred(parseInt(matchId, 10));
     });
 });

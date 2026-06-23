@@ -21,7 +21,7 @@ switch ($action) {
         }
 
         // Verificar que el partido no haya empezado
-        $stmt = $db->prepare('SELECT match_date, is_finished FROM matches WHERE id = ?');
+        $stmt = $db->prepare('SELECT match_date, is_finished, can_penalties FROM matches WHERE id = ?');
         $stmt->execute([$matchId]);
         $match = $stmt->fetch();
 
@@ -40,11 +40,25 @@ switch ($action) {
             exit;
         }
 
+        $penaltyHome = null;
+        $penaltyAway = null;
+        if ($match['can_penalties'] && $homeScore === $awayScore
+            && isset($_POST['penalty_home'], $_POST['penalty_away'])
+            && $_POST['penalty_home'] !== '' && $_POST['penalty_away'] !== '') {
+            $penaltyHome = (int)$_POST['penalty_home'];
+            $penaltyAway = (int)$_POST['penalty_away'];
+            if ($penaltyHome < 0 || $penaltyAway < 0 || $penaltyHome === $penaltyAway) {
+                echo json_encode(['ok' => false, 'msg' => 'Resultado de penales inválido.']);
+                exit;
+            }
+        }
+
         $db->prepare('
-            INSERT INTO predictions (user_id, match_id, home_score, away_score)
-            VALUES (?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE home_score = VALUES(home_score), away_score = VALUES(away_score)
-        ')->execute([$user['id'], $matchId, $homeScore, $awayScore]);
+            INSERT INTO predictions (user_id, match_id, home_score, away_score, pred_penalty_home, pred_penalty_away)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE home_score = VALUES(home_score), away_score = VALUES(away_score),
+                                    pred_penalty_home = VALUES(pred_penalty_home), pred_penalty_away = VALUES(pred_penalty_away)
+        ')->execute([$user['id'], $matchId, $homeScore, $awayScore, $penaltyHome, $penaltyAway]);
 
         echo json_encode(['ok' => true, 'msg' => '¡Predicción guardada!']);
         break;

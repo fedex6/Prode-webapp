@@ -1,6 +1,7 @@
 <?php
 require_once 'auth.php';
 require_once 'db.php';
+require_once 'migrations.php';
 requireAdmin();
 
 $db      = getDB();
@@ -48,6 +49,12 @@ function rrmdir(string $dir): void {
         is_dir($path) ? rrmdir($path) : unlink($path);
     }
     rmdir($dir);
+}
+
+// Correr migraciones pendientes manualmente
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'run_migrations') {
+    $migResults = runPendingMigrations(__DIR__ . '/migrations');
+    $message = $migResults ? implode(' ', $migResults) : 'No había migraciones pendientes.';
 }
 
 // Forzar re-chequeo
@@ -120,6 +127,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'do_up
                     @unlink(sys_get_temp_dir() . '/prode_update_cache.json');
 
                     $message = "App actualizada a {$release['tag']} correctamente ({$copied} archivos actualizados).";
+
+                    $migResults = runPendingMigrations(__DIR__ . '/migrations');
+                    if ($migResults) {
+                        $message .= ' — ' . implode(' ', $migResults);
+                    }
                 }
             }
         }
@@ -135,21 +147,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_r
     $homeScore = (int)$_POST['home_score'];
     $awayScore = (int)$_POST['away_score'];
 
-    if ($matchId && $homeScore >= 0 && $awayScore >= 0) {
+    $matchRow = $db->prepare('SELECT can_penalties FROM matches WHERE id = ?');
+    $matchRow->execute([$matchId]);
+    $canPenalties = (bool)$matchRow->fetchColumn();
+
+    $wentPenalties = $canPenalties && isset($_POST['went_penalties']) && $homeScore === $awayScore;
+    $penaltyHome   = $wentPenalties ? (int)$_POST['penalty_home'] : null;
+    $penaltyAway   = $wentPenalties ? (int)$_POST['penalty_away'] : null;
+
+    if ($matchId && $homeScore >= 0 && $awayScore >= 0
+        && (!$wentPenalties || $penaltyHome !== $penaltyAway)) {
         // Guardar resultado
-        $db->prepare('UPDATE matches SET home_score = ?, away_score = ?, is_finished = 1 WHERE id = ?')
-           ->execute([$homeScore, $awayScore, $matchId]);
+        $db->prepare('UPDATE matches SET home_score = ?, away_score = ?, is_finished = 1,
+                      went_penalties = ?, penalty_home = ?, penalty_away = ? WHERE id = ?')
+           ->execute([$homeScore, $awayScore, $wentPenalties ? 1 : 0, $penaltyHome, $penaltyAway, $matchId]);
 
         // Calcular puntos para cada predicción de este partido
-        $preds = $db->prepare('SELECT id, home_score, away_score FROM predictions WHERE match_id = ?');
+        $preds = $db->prepare('SELECT id, home_score, away_score, pred_penalty_home, pred_penalty_away
+                               FROM predictions WHERE match_id = ?');
         $preds->execute([$matchId]);
 
-        $realHome = $homeScore;
-        $realAway = $awayScore;
+        $realHome   = $homeScore;
+        $realAway   = $awayScore;
         $realResult = $realHome <=> $realAway; // -1, 0, 1
+        $realPenaltyWinner = $wentPenalties ? ($penaltyHome > $penaltyAway ? 'home' : 'away') : null;
 
         foreach ($preds->fetchAll() as $pred) {
             $predResult = $pred['home_score'] <=> $pred['away_score'];
+            $predIsDraw = $pred['home_score'] == $pred['away_score'];
+
             if ($pred['home_score'] == $realHome && $pred['away_score'] == $realAway) {
                 $points = 3;
             } elseif ($predResult === $realResult) {
@@ -157,6 +183,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_r
             } else {
                 $points = 0;
             }
+
+            if ($wentPenalties) {
+                if ($predIsDraw && $pred['pred_penalty_home'] !== null && $pred['pred_penalty_away'] !== null) {
+                    if ($pred['pred_penalty_home'] == $penaltyHome && $pred['pred_penalty_away'] == $penaltyAway) {
+                        $points += 3;
+                    } elseif (($pred['pred_penalty_home'] > $pred['pred_penalty_away'] ? 'home' : 'away') === $realPenaltyWinner) {
+                        $points += 1;
+                    }
+                } elseif (!$predIsDraw) {
+                    $predWinner = $pred['home_score'] > $pred['away_score'] ? 'home' : 'away';
+                    if ($predWinner === $realPenaltyWinner) {
+                        $points += 1;
+                    }
+                }
+            }
+
             $db->prepare('UPDATE predictions SET points = ?, scored = 1 WHERE id = ?')
                ->execute([$points, $pred['id']]);
         }
@@ -165,6 +207,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_r
     } else {
         $error = 'Datos inválidos.';
     }
+}
+
+// Habilitar/deshabilitar instancia de penales en un partido ya cargado
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_can_penalties') {
+    $matchId = (int)$_POST['match_id'];
+    $db->prepare('UPDATE matches SET can_penalties = 1 - can_penalties WHERE id = ?')
+       ->execute([$matchId]);
+    $message = 'Configuración de penales actualizada.';
 }
 
 // Agregar nuevo partido
@@ -177,11 +227,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_m
     $stage = trim($_POST['stage'] ?? 'Fase de Grupos');
     $group = trim($_POST['group_name'] ?? '');
     $venue = trim($_POST['venue'] ?? '');
+    $canPenalties = isset($_POST['can_penalties']) ? 1 : 0;
 
     if ($home && $away && $date) {
-        $db->prepare('INSERT INTO matches (home_team, away_team, home_flag, away_flag, match_date, stage, group_name, venue)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-           ->execute([$home, $away, $hflag, $aflag, $date, $stage, $group ?: null, $venue]);
+        $db->prepare('INSERT INTO matches (home_team, away_team, home_flag, away_flag, match_date, stage, group_name, venue, can_penalties)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+           ->execute([$home, $away, $hflag, $aflag, $date, $stage, $group ?: null, $venue, $canPenalties]);
         $message = 'Partido agregado correctamente.';
     } else {
         $error = 'Completá los campos obligatorios del partido.';
@@ -191,7 +242,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_m
 // Eliminar resultado (re-abrir partido)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reopen_match') {
     $matchId = (int)$_POST['match_id'];
-    $db->prepare('UPDATE matches SET home_score = NULL, away_score = NULL, is_finished = 0 WHERE id = ?')
+    $db->prepare('UPDATE matches SET home_score = NULL, away_score = NULL, is_finished = 0,
+                  went_penalties = 0, penalty_home = NULL, penalty_away = NULL WHERE id = ?')
        ->execute([$matchId]);
     $db->prepare('UPDATE predictions SET points = 0, scored = 0 WHERE match_id = ?')
        ->execute([$matchId]);
@@ -377,6 +429,12 @@ $stats = $db->query('
                         <input type="text" name="venue" placeholder="Nombre del estadio">
                     </div>
                 </div>
+                <div class="form-row">
+                    <label class="penalty-toggle">
+                        <input type="checkbox" name="can_penalties" value="1">
+                        ¿Este partido puede definirse por penales? (fases eliminatorias)
+                    </label>
+                </div>
                 <button type="submit" class="btn btn-primary">Agregar partido</button>
             </form>
         </section>
@@ -425,9 +483,13 @@ $stats = $db->query('
                     <p class="update-status update-status-ok">✅ Tenés la última versión instalada.</p>
                 <?php endif; ?>
 
-                <form method="POST" style="margin-top: 0.75rem;">
+                <form method="POST" style="margin-top: 0.75rem; display: inline;">
                     <input type="hidden" name="action" value="check_update">
                     <button type="submit" class="btn btn-secondary btn-sm">🔍 Verificar actualizaciones ahora</button>
+                </form>
+                <form method="POST" style="margin-top: 0.75rem; display: inline;">
+                    <input type="hidden" name="action" value="run_migrations">
+                    <button type="submit" class="btn btn-secondary btn-sm">🗄️ Correr migraciones pendientes</button>
                 </form>
             </div>
         </section>
@@ -448,17 +510,44 @@ $stats = $db->query('
                         </span>
                         <span class="match-date-compact"><?= $matchDate->format('d/m/Y H:i') ?></span>
                         <span class="badge <?= $m['is_finished'] ? 'badge-done' : 'badge-open' ?>">
-                            <?= $m['is_finished'] ? "✅ {$m['home_score']}–{$m['away_score']}" : 'Pendiente' ?>
+                            <?php if ($m['is_finished']): ?>
+                                ✅ <?= $m['home_score'] ?>–<?= $m['away_score'] ?><?= $m['went_penalties'] ? " (pen. {$m['penalty_home']}-{$m['penalty_away']})" : '' ?>
+                            <?php else: ?>
+                                Pendiente
+                            <?php endif; ?>
                         </span>
+                        <?php if (!$m['is_finished']): ?>
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="action" value="toggle_can_penalties">
+                            <input type="hidden" name="match_id" value="<?= $m['id'] ?>">
+                            <button type="submit" class="badge-toggle-btn <?= $m['can_penalties'] ? 'badge-done' : '' ?>">
+                                <?= $m['can_penalties'] ? '🥅 Puede ir a penales' : '⚽ Sin penales' ?>
+                            </button>
+                        </form>
+                        <?php endif; ?>
                     </div>
                     <div class="admin-match-actions">
                         <?php if (!$m['is_finished']): ?>
-                        <form method="POST" class="result-form">
+                        <form method="POST" class="result-form" id="result-form-<?= $m['id'] ?>">
                             <input type="hidden" name="action" value="set_result">
                             <input type="hidden" name="match_id" value="<?= $m['id'] ?>">
-                            <input type="number" name="home_score" min="0" max="20" placeholder="0" required class="score-input-sm">
+                            <input type="number" name="home_score" min="0" max="20" placeholder="0" required
+                                   class="score-input-sm" <?= $m['can_penalties'] ? 'oninput="togglePenaltyInputs(' . $m['id'] . ')"' : '' ?>>
                             <span>—</span>
-                            <input type="number" name="away_score" min="0" max="20" placeholder="0" required class="score-input-sm">
+                            <input type="number" name="away_score" min="0" max="20" placeholder="0" required
+                                   class="score-input-sm" <?= $m['can_penalties'] ? 'oninput="togglePenaltyInputs(' . $m['id'] . ')"' : '' ?>>
+                            <?php if ($m['can_penalties']): ?>
+                            <label class="penalty-toggle" id="penalty-toggle-<?= $m['id'] ?>" style="display:none;">
+                                <input type="checkbox" name="went_penalties" value="1"
+                                       onchange="document.getElementById('penalty-scores-<?= $m['id'] ?>').style.display = this.checked ? '' : 'none'">
+                                ¿Fue a penales?
+                            </label>
+                            <span class="penalty-scores" id="penalty-scores-<?= $m['id'] ?>" style="display:none;">
+                                <input type="number" name="penalty_home" min="0" max="30" placeholder="Pen. local" class="score-input-sm">
+                                <span>—</span>
+                                <input type="number" name="penalty_away" min="0" max="30" placeholder="Pen. visit." class="score-input-sm">
+                            </span>
+                            <?php endif; ?>
                             <button type="submit" class="btn btn-sm btn-success">Cargar resultado</button>
                         </form>
                         <?php else: ?>
@@ -477,5 +566,19 @@ $stats = $db->query('
             </div>
         </section>
     </main>
+    <script>
+        function togglePenaltyInputs(matchId) {
+            const form = document.getElementById('result-form-' + matchId);
+            const home = form.querySelector('input[name="home_score"]').value;
+            const away = form.querySelector('input[name="away_score"]').value;
+            const toggle = document.getElementById('penalty-toggle-' + matchId);
+            const isDraw = home !== '' && away !== '' && home === away;
+            toggle.style.display = isDraw ? '' : 'none';
+            if (!isDraw) {
+                toggle.querySelector('input[type="checkbox"]').checked = false;
+                document.getElementById('penalty-scores-' + matchId).style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>

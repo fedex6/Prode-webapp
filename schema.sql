@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS matches (
     home_score INT DEFAULT NULL,
     away_score INT DEFAULT NULL,
     is_finished TINYINT(1) DEFAULT 0,
+    can_penalties TINYINT(1) DEFAULT 0,
+    went_penalties TINYINT(1) DEFAULT 0,
+    penalty_home INT DEFAULT NULL,
+    penalty_away INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -34,6 +38,8 @@ CREATE TABLE IF NOT EXISTS predictions (
     match_id INT NOT NULL,
     home_score INT NOT NULL,
     away_score INT NOT NULL,
+    pred_penalty_home INT DEFAULT NULL,
+    pred_penalty_away INT DEFAULT NULL,
     points INT DEFAULT 0,
     scored TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

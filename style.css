@@ -406,6 +406,36 @@ input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px r
 
 .no-pred { font-style: italic; opacity: .7; }
 
+.penalty-score-sub {
+    font-size: .7rem;
+    font-weight: 600;
+    color: var(--gray);
+    margin-top: .1rem;
+}
+
+.penalty-pred-area {
+    margin-top: .4rem;
+    font-size: .72rem;
+    color: var(--gray);
+    text-align: center;
+}
+.penalty-pred-area label { display: inline-flex; align-items: center; gap: .25rem; cursor: pointer; }
+.penalty-pred-scores { display: flex; align-items: center; justify-content: center; gap: .35rem; margin-top: .25rem; }
+
+.penalty-toggle { display: inline-flex; align-items: center; gap: .25rem; font-size: .8rem; margin: 0 .5rem; }
+.penalty-scores { display: inline-flex; align-items: center; gap: .35rem; margin-right: .5rem; }
+
+.badge-toggle-btn {
+    border: 1px solid var(--gray-l);
+    background: #fff;
+    border-radius: 999px;
+    padding: .1rem .55rem;
+    font-size: .72rem;
+    cursor: pointer;
+    color: var(--gray);
+}
+.badge-toggle-btn.badge-done { background: var(--green-l); color: var(--green-d); border-color: transparent; }
+
 /* ── Points earned ────────────────────────────────────── */
 .points-earned {
     display: inline-block;

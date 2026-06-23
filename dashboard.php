@@ -16,6 +16,8 @@ $stmt = $db->prepare('
     SELECT m.*,
            p.home_score  AS pred_home,
            p.away_score  AS pred_away,
+           p.pred_penalty_home,
+           p.pred_penalty_away,
            p.points      AS pred_points,
            p.id          AS pred_id
     FROM matches m
@@ -181,10 +183,16 @@ $now = new DateTime();
                             <?php if ($finished): ?>
                                 <div class="result-score">
                                     <?= $m['home_score'] ?> — <?= $m['away_score'] ?>
+                                    <?php if ($m['went_penalties']): ?>
+                                        <div class="penalty-score-sub">Pen. <?= $m['penalty_home'] ?>-<?= $m['penalty_away'] ?></div>
+                                    <?php endif; ?>
                                 </div>
                             <?php elseif ($locked && $hasPred): ?>
                                 <div class="locked-pred">
                                     <?= $m['pred_home'] ?> — <?= $m['pred_away'] ?>
+                                    <?php if ($m['pred_penalty_home'] !== null): ?>
+                                        <div class="penalty-score-sub">Pen. <?= $m['pred_penalty_home'] ?>-<?= $m['pred_penalty_away'] ?></div>
+                                    <?php endif; ?>
                                 </div>
                             <?php elseif ($locked): ?>
                                 <div class="locked-pred no-pred">Sin pred.</div>
@@ -193,13 +201,35 @@ $now = new DateTime();
                                     <input type="number" class="score-input" min="0" max="20"
                                            id="ph_<?= $m['id'] ?>"
                                            value="<?= $hasPred ? $m['pred_home'] : '' ?>"
-                                           placeholder="0">
+                                           placeholder="0"
+                                           <?= $m['can_penalties'] ? 'oninput="togglePenaltyPred(' . $m['id'] . ')"' : '' ?>>
                                     <span class="vs-sep">:</span>
                                     <input type="number" class="score-input" min="0" max="20"
                                            id="pa_<?= $m['id'] ?>"
                                            value="<?= $hasPred ? $m['pred_away'] : '' ?>"
-                                           placeholder="0">
+                                           placeholder="0"
+                                           <?= $m['can_penalties'] ? 'oninput="togglePenaltyPred(' . $m['id'] . ')"' : '' ?>>
                                 </div>
+                                <?php if ($m['can_penalties']): ?>
+                                <div class="penalty-pred-area" id="penalty_area_<?= $m['id'] ?>" style="display:none;">
+                                    <label>
+                                        <input type="checkbox" id="pen_chk_<?= $m['id'] ?>"
+                                               <?= $m['pred_penalty_home'] !== null ? 'checked' : '' ?>
+                                               onchange="document.getElementById('penalty_scores_<?= $m['id'] ?>').style.display = this.checked ? '' : 'none'">
+                                        ¿Termina en penales?
+                                    </label>
+                                    <div class="penalty-pred-scores" id="penalty_scores_<?= $m['id'] ?>"
+                                         style="display:<?= $m['pred_penalty_home'] !== null ? '' : 'none' ?>;">
+                                        <input type="number" class="score-input-sm" min="0" max="30"
+                                               id="pph_<?= $m['id'] ?>" placeholder="Pen."
+                                               value="<?= $m['pred_penalty_home'] ?? '' ?>">
+                                        <span class="vs-sep">:</span>
+                                        <input type="number" class="score-input-sm" min="0" max="30"
+                                               id="ppa_<?= $m['id'] ?>" placeholder="Pen."
+                                               value="<?= $m['pred_penalty_away'] ?? '' ?>">
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
 
