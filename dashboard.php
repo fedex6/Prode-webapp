@@ -223,11 +223,11 @@ $now = new DateTime();
                     <div class="penalty-pred-area" id="penalty_area_<?= $m['id'] ?>" style="display:none;">
                         <span class="penalty-pred-label">🥅 Termina en penales — marcador:</span>
                         <div class="penalty-pred-scores">
-                            <input type="number" class="score-input-sm" min="0" max="30"
+                            <input type="number" class="score-input" min="0" max="30"
                                    id="pph_<?= $m['id'] ?>" placeholder="Pen."
                                    value="<?= $m['pred_penalty_home'] ?? '' ?>">
                             <span class="vs-sep">:</span>
-                            <input type="number" class="score-input-sm" min="0" max="30"
+                            <input type="number" class="score-input" min="0" max="30"
                                    id="ppa_<?= $m['id'] ?>" placeholder="Pen."
                                    value="<?= $m['pred_penalty_away'] ?? '' ?>">
                         </div>
