@@ -414,13 +414,20 @@ input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px r
 }
 
 .penalty-pred-area {
-    margin-top: .4rem;
-    font-size: .72rem;
-    color: var(--gray);
+    margin: .5rem 0 0;
+    padding: .5rem;
+    background: var(--app-primary-l, #f3f4f6);
+    border-radius: .5rem;
     text-align: center;
 }
-.penalty-pred-area label { display: inline-flex; align-items: center; gap: .25rem; cursor: pointer; }
-.penalty-pred-scores { display: flex; align-items: center; justify-content: center; gap: .35rem; margin-top: .25rem; }
+.penalty-pred-label {
+    display: block;
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--gray);
+    margin-bottom: .35rem;
+}
+.penalty-pred-scores { display: flex; align-items: center; justify-content: center; gap: .35rem; }
 
 .penalty-toggle { display: inline-flex; align-items: center; gap: .25rem; font-size: .8rem; margin: 0 .5rem; }
 .penalty-scores { display: inline-flex; align-items: center; gap: .35rem; margin-right: .5rem; }

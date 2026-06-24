@@ -544,10 +544,10 @@ $stats = $db->query('
                             <input type="hidden" name="action" value="set_result">
                             <input type="hidden" name="match_id" value="<?= $m['id'] ?>">
                             <input type="number" name="home_score" min="0" max="20" placeholder="0" required
-                                   class="score-input-sm" <?= $m['can_penalties'] ? 'oninput="togglePenaltyInputs(' . $m['id'] . ')"' : '' ?>>
+                                   class="score-input" <?= $m['can_penalties'] ? 'oninput="togglePenaltyInputs(' . $m['id'] . ')"' : '' ?>>
                             <span>—</span>
                             <input type="number" name="away_score" min="0" max="20" placeholder="0" required
-                                   class="score-input-sm" <?= $m['can_penalties'] ? 'oninput="togglePenaltyInputs(' . $m['id'] . ')"' : '' ?>>
+                                   class="score-input" <?= $m['can_penalties'] ? 'oninput="togglePenaltyInputs(' . $m['id'] . ')"' : '' ?>>
                             <?php if ($m['can_penalties']): ?>
                             <label class="penalty-toggle" id="penalty-toggle-<?= $m['id'] ?>" style="display:none;">
                                 <input type="checkbox" name="went_penalties" value="1"
@@ -555,9 +555,9 @@ $stats = $db->query('
                                 ¿Fue a penales?
                             </label>
                             <span class="penalty-scores" id="penalty-scores-<?= $m['id'] ?>" style="display:none;">
-                                <input type="number" name="penalty_home" min="0" max="30" placeholder="Pen. local" class="score-input-sm">
+                                <input type="number" name="penalty_home" min="0" max="30" placeholder="Pen. local" class="score-input">
                                 <span>—</span>
-                                <input type="number" name="penalty_away" min="0" max="30" placeholder="Pen. visit." class="score-input-sm">
+                                <input type="number" name="penalty_away" min="0" max="30" placeholder="Pen. visit." class="score-input">
                             </span>
                             <?php endif; ?>
                             <button type="submit" class="btn btn-sm btn-success">Cargar resultado</button>

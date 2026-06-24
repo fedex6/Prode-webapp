@@ -210,26 +210,6 @@ $now = new DateTime();
                                            placeholder="0"
                                            <?= $m['can_penalties'] ? 'oninput="togglePenaltyPred(' . $m['id'] . ')"' : '' ?>>
                                 </div>
-                                <?php if ($m['can_penalties']): ?>
-                                <div class="penalty-pred-area" id="penalty_area_<?= $m['id'] ?>" style="display:none;">
-                                    <label>
-                                        <input type="checkbox" id="pen_chk_<?= $m['id'] ?>"
-                                               <?= $m['pred_penalty_home'] !== null ? 'checked' : '' ?>
-                                               onchange="document.getElementById('penalty_scores_<?= $m['id'] ?>').style.display = this.checked ? '' : 'none'">
-                                        ¿Termina en penales?
-                                    </label>
-                                    <div class="penalty-pred-scores" id="penalty_scores_<?= $m['id'] ?>"
-                                         style="display:<?= $m['pred_penalty_home'] !== null ? '' : 'none' ?>;">
-                                        <input type="number" class="score-input-sm" min="0" max="30"
-                                               id="pph_<?= $m['id'] ?>" placeholder="Pen."
-                                               value="<?= $m['pred_penalty_home'] ?? '' ?>">
-                                        <span class="vs-sep">:</span>
-                                        <input type="number" class="score-input-sm" min="0" max="30"
-                                               id="ppa_<?= $m['id'] ?>" placeholder="Pen."
-                                               value="<?= $m['pred_penalty_away'] ?? '' ?>">
-                                    </div>
-                                </div>
-                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
 
@@ -238,6 +218,21 @@ $now = new DateTime();
                             <span class="flag"><?= $m['away_flag'] ?></span>
                         </div>
                     </div>
+
+                    <?php if (!$finished && !$locked && $m['can_penalties']): ?>
+                    <div class="penalty-pred-area" id="penalty_area_<?= $m['id'] ?>" style="display:none;">
+                        <span class="penalty-pred-label">🥅 Termina en penales — marcador:</span>
+                        <div class="penalty-pred-scores">
+                            <input type="number" class="score-input-sm" min="0" max="30"
+                                   id="pph_<?= $m['id'] ?>" placeholder="Pen."
+                                   value="<?= $m['pred_penalty_home'] ?? '' ?>">
+                            <span class="vs-sep">:</span>
+                            <input type="number" class="score-input-sm" min="0" max="30"
+                                   id="ppa_<?= $m['id'] ?>" placeholder="Pen."
+                                   value="<?= $m['pred_penalty_away'] ?? '' ?>">
+                        </div>
+                    </div>
+                    <?php endif; ?>
 
                     <div class="match-venue">📍 <?= htmlspecialchars($m['venue']) ?></div>
                     <?php if ($finished): ?>

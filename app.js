@@ -10,10 +10,8 @@ function togglePenaltyPred(matchId) {
 
     area.style.display = isDraw ? '' : 'none';
     if (!isDraw) {
-        const chk = document.getElementById('pen_chk_' + matchId);
-        if (chk) chk.checked = false;
-        const scores = document.getElementById('penalty_scores_' + matchId);
-        if (scores) scores.style.display = 'none';
+        document.getElementById('pph_' + matchId).value = '';
+        document.getElementById('ppa_' + matchId).value = '';
     }
 }
 
@@ -40,14 +38,16 @@ function savePrediction(matchId) {
         away_score: awayScore,
     };
 
-    const penChk = document.getElementById('pen_chk_' + matchId);
-    if (penChk && penChk.checked && homeScore === awayScore) {
+    const penaltyArea = document.getElementById('penalty_area_' + matchId);
+    if (penaltyArea && penaltyArea.style.display !== 'none') {
         const penHome = document.getElementById('pph_' + matchId).value.trim();
         const penAway = document.getElementById('ppa_' + matchId).value.trim();
-        if (penHome !== '' && penAway !== '') {
-            params.penalty_home = penHome;
-            params.penalty_away = penAway;
+        if (penHome === '' || penAway === '') {
+            showStatus(statusEl, '⚠️ Este partido puede ir a penales: ingresá el marcador de penales.', 'status-warn');
+            return;
         }
+        params.penalty_home = penHome;
+        params.penalty_away = penAway;
     }
 
     const body = new URLSearchParams(params);

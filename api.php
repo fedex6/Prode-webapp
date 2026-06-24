@@ -42,9 +42,12 @@ switch ($action) {
 
         $penaltyHome = null;
         $penaltyAway = null;
-        if ($match['can_penalties'] && $homeScore === $awayScore
-            && isset($_POST['penalty_home'], $_POST['penalty_away'])
-            && $_POST['penalty_home'] !== '' && $_POST['penalty_away'] !== '') {
+        if ($match['can_penalties'] && $homeScore === $awayScore) {
+            if (!isset($_POST['penalty_home'], $_POST['penalty_away'])
+                || $_POST['penalty_home'] === '' || $_POST['penalty_away'] === '') {
+                echo json_encode(['ok' => false, 'msg' => 'Este partido puede ir a penales: ingresá el marcador de penales.']);
+                exit;
+            }
             $penaltyHome = (int)$_POST['penalty_home'];
             $penaltyAway = (int)$_POST['penalty_away'];
             if ($penaltyHome < 0 || $penaltyAway < 0 || $penaltyHome === $penaltyAway) {
