@@ -104,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'do_up
                     $srcDir = rtrim($subdirs[0], '/') . '/';
                     $skip   = UPDATE_SKIP_FILES;
                     $copied = 0;
+                    $failed = [];
 
                     $iter = new RecursiveIteratorIterator(
                         new RecursiveDirectoryIterator($srcDir, RecursiveDirectoryIterator::SKIP_DOTS),
@@ -115,10 +116,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'do_up
 
                         $dest = __DIR__ . '/' . $rel;
                         if ($item->isDir()) {
-                            if (!is_dir($dest)) mkdir($dest, 0755, true);
+                            if (!is_dir($dest) && !mkdir($dest, 0755, true)) {
+                                $failed[] = $rel . '/';
+                            }
                         } else {
-                            copy($item->getPathname(), $dest);
-                            $copied++;
+                            if (copy($item->getPathname(), $dest)) {
+                                $copied++;
+                            } else {
+                                $failed[] = $rel;
+                            }
                         }
                     }
 
@@ -126,11 +132,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'do_up
                     file_put_contents(__DIR__ . '/version.txt', $release['tag'] . "\n");
                     @unlink(sys_get_temp_dir() . '/prode_update_cache.json');
 
-                    $message = "App actualizada a {$release['tag']} correctamente ({$copied} archivos actualizados).";
+                    if ($failed) {
+                        $error = "Actualización a {$release['tag']} incompleta: {$copied} archivos actualizados, pero "
+                               . count($failed) . " no se pudieron escribir (revisá permisos de escritura en el servidor): "
+                               . implode(', ', $failed);
+                    } else {
+                        $message = "App actualizada a {$release['tag']} correctamente ({$copied} archivos actualizados).";
 
-                    $migResults = runPendingMigrations(__DIR__ . '/migrations');
-                    if ($migResults) {
-                        $message .= ' — ' . implode(' ', $migResults);
+                        $migResults = runPendingMigrations(__DIR__ . '/migrations');
+                        if ($migResults) {
+                            $message .= ' — ' . implode(' ', $migResults);
+                        }
                     }
                 }
             }
