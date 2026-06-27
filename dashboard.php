@@ -287,6 +287,6 @@ $now = new DateTime();
         <?php endforeach; ?>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=<?= filemtime(__DIR__ . '/app.js') ?>"></script>
 </body>
 </html>
