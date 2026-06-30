@@ -66,6 +66,18 @@ function savePrediction(matchId) {
         .finally(() => { if (btn) btn.disabled = false; });
 }
 
+function toggleOldFinished() {
+    const hidden = document.body.classList.toggle('hide-old-finished');
+    localStorage.setItem('hideOldFinished', hidden ? '1' : '0');
+    updateHideOldFinishedBtn(hidden);
+}
+
+function updateHideOldFinishedBtn(hidden) {
+    const btn = document.getElementById('btnHideOldFinished');
+    if (!btn) return;
+    btn.innerHTML = hidden ? '👁️<br />Mostrar anteriores' : '🙈<br />Ocultar anteriores';
+}
+
 function showStatus(el, msg, cls) {
     el.textContent  = msg;
     el.className    = 'save-status ' + cls;
@@ -78,6 +90,10 @@ function showStatus(el, msg, cls) {
 
 // Guardar con Enter en los inputs
 document.addEventListener('DOMContentLoaded', () => {
+    const hideOld = localStorage.getItem('hideOldFinished') === '1';
+    if (hideOld) document.body.classList.add('hide-old-finished');
+    updateHideOldFinishedBtn(hideOld);
+
     document.querySelectorAll('.score-input').forEach(input => {
         input.addEventListener('keydown', e => {
             if (e.key === 'Enter') {

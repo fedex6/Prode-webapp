@@ -65,6 +65,7 @@ foreach ($matches as $m) {
 }
 
 $now = new DateTime();
+$today = (clone $now)->setTime(0, 0, 0);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -105,6 +106,7 @@ $now = new DateTime();
             transition: background .15s, border-color .15s;
         }
         .btn-sort:hover { background: var(--gray-l); text-decoration: none; }
+        body.hide-old-finished .match-old-finished { display: none; }
     </style>
 </head>
 <body>
@@ -145,6 +147,7 @@ $now = new DateTime();
                 <?php else: ?>
                 <a href="dashboard.php?sort=date" class="btn-sort">📅<br />Por FECHAS</a>
                 <?php endif; ?>
+                <button type="button" id="btnHideOldFinished" class="btn-sort" onclick="toggleOldFinished()">🙈<br />Ocultar anteriores</button>
             </div>
         </div>
 
@@ -160,6 +163,8 @@ $now = new DateTime();
                     $cardClass  = 'match-card';
                     if ($finished) $cardClass .= ' match-finished';
                     elseif ($locked) $cardClass .= ' match-locked';
+                    $isOldFinished = $finished && $matchDate < $today;
+                    if ($isOldFinished) $cardClass .= ' match-old-finished';
                 ?>
                 <div class="<?= $cardClass ?>" id="match-<?= $m['id'] ?>">
                     <div class="match-meta">
