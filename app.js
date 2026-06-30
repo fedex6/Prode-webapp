@@ -70,12 +70,22 @@ function toggleOldFinished() {
     const hidden = document.body.classList.toggle('hide-old-finished');
     localStorage.setItem('hideOldFinished', hidden ? '1' : '0');
     updateHideOldFinishedBtn(hidden);
+    updateEmptySections();
 }
 
 function updateHideOldFinishedBtn(hidden) {
     const btn = document.getElementById('btnHideOldFinished');
     if (!btn) return;
     btn.innerHTML = hidden ? '👁️<br />Mostrar anteriores' : '🙈<br />Ocultar anteriores';
+}
+
+function updateEmptySections() {
+    const hideOld = document.body.classList.contains('hide-old-finished');
+    document.querySelectorAll('.match-section').forEach(section => {
+        const anyVisible = Array.from(section.querySelectorAll('.match-card'))
+            .some(card => !hideOld || !card.classList.contains('match-old-finished'));
+        section.classList.toggle('section-empty', !anyVisible);
+    });
 }
 
 function showStatus(el, msg, cls) {
@@ -93,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const hideOld = localStorage.getItem('hideOldFinished') === '1';
     if (hideOld) document.body.classList.add('hide-old-finished');
     updateHideOldFinishedBtn(hideOld);
+    updateEmptySections();
 
     document.querySelectorAll('.score-input').forEach(input => {
         input.addEventListener('keydown', e => {

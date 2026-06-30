@@ -107,6 +107,7 @@ $today = (clone $now)->setTime(0, 0, 0);
         }
         .btn-sort:hover { background: var(--gray-l); text-decoration: none; }
         body.hide-old-finished .match-old-finished { display: none; }
+        .match-section.section-empty { display: none; }
     </style>
 </head>
 <body>
@@ -269,11 +270,6 @@ $today = (clone $now)->setTime(0, 0, 0);
                             <?php if ($pAway > 0): ?>
                             <div class="pred-dist-seg seg-away" style="width:<?= $pAway ?>%"><?= $pAway ?>%</div>
                             <?php endif; ?>
-                        </div>
-                        <div class="pred-dist-labels">
-                            <span class="pdl-home"><?= htmlspecialchars($m['home_team']) ?> <?= $pHome ?>%</span>
-                            <span class="pdl-draw">Empate <?= $pDraw ?>%</span>
-                            <span class="pdl-away"><?= $pAway ?>% <?= htmlspecialchars($m['away_team']) ?></span>
                         </div>
                     </div>
                     <?php endif; ?>
